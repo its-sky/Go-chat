@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"golang.org/x/text/cases"
 )
 
 // HTTP 요청을 웹소켓으로 업그레이드
@@ -47,6 +48,24 @@ func NewRoom() *Room {
 	}
 }
 
+func (r *Room) RunInit() {
+	// Room에 있는 모든 채널 값을 받는 역할
+	for {
+		select {
+		case client := <-r.Join:
+			r.Clients[client] = true
+		case client := <-r.Leave:
+			r.Clients[client] = false
+			close(client.Send)
+			delete(r.Clients, client)
+		case msg := <-r.Forward:
+			for client, v := r.Clients {
+
+			}
+		}
+	}
+}
+
 func (r *Room) SocketServe(c *gin.Context) {
 	socket, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -64,4 +83,10 @@ func (r *Room) SocketServe(c *gin.Context) {
 		Room: r,
 		Name: userCookie.Value
 	}
+
+	// 진입
+	r.Join <- client
+
+	// 퇴장
+	defer func() { r.Leave <- client }
 }
