@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"golang.org/x/text/cases"
 )
 
 // HTTP 요청을 웹소켓으로 업그레이드
@@ -55,7 +54,11 @@ func (c *client) Read() {
 		var msg *message
 		err := c.Socket.ReadJSON(msg)
 		if err != nil {
-			panic(err)
+			if !websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				break
+			} else {
+				panic(err)
+			}
 		} else {
 			msg.Time = time.Now().Unix()
 			msg.Name = c.Name
@@ -106,16 +109,16 @@ func (r *Room) SocketServe(c *gin.Context) {
 
 	client := &client{
 		Socket: socket,
-		Send: make(chan *message, types.MessageBufferSize),
-		Room: r,
-		Name: userCookie.Value
+		Send:   make(chan *message, types.MessageBufferSize),
+		Room:   r,
+		Name:   userCookie.Value,
 	}
 
 	// 진입
 	r.Join <- client
 
 	// 퇴장
-	defer func() { r.Leave <- client }
+	defer func() { r.Leave <- client }()
 
 	go client.Write()
 
